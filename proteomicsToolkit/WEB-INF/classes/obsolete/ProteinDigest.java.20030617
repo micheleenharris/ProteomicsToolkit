@@ -1,0 +1,1040 @@
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+import java.math.*;
+import java.util.StringTokenizer;
+import java.util.Vector;
+import java.util.Enumeration;
+
+
+/*
+ * 2001/12/10:  add N & C terminal masses.  For cyanogen bromide digestion, modify
+ *              c-terminus by subtracting SCH3 from Methionine (homoserine lactone);
+ *              add another 18 for homoserine
+ */
+
+
+public class ProteinDigest extends HttpServlet
+{
+
+  // ************************** SERVLET CODE **************************
+
+
+ /*
+  *  VARIABLES
+  */
+
+  private String sequence,
+                 method1,
+                 method2,
+                 missedCleavages,
+                 outputOrder,
+                 processedSequence,
+                 pI,
+                 mass,
+                 position,
+                 minMass,
+                 maxMass,
+                 highlightAA,
+                 includeAA;
+
+  private PrintWriter out;
+
+  private int inputError = 0;
+
+
+  /*
+   *  The following table contains the digest rules for each method of
+   *  digest.  N/C refers to whether or not it cleaves at the n or c-
+   *  terminus.  
+   */
+
+  private String [] [] digestRules = {
+
+  // METHOD                  		N/C     RESIDUES     EXCEPTIONS
+  { "Trypsin",               		"1",     "KR",       "P"      },
+  { "Chymotrypsin",          		"1",     "FWY",      "P"      },
+  { "Clostripain",           		"1",     "R",        ""       },
+  { "Cyanogen_Bromide",      		"1",     "M",        ""       },
+  { "IodosoBenzoate",    		"1",     "W",        ""       },
+  { "Proline_Endopept",  		"1",     "P",        ""       },
+  { "Staph_Protease",    		"1",     "E",        ""       },
+  { "Trypsin_K",         		"1",     "K",        "P"      },
+  { "Trypsin_R",         		"1",     "R",        "P"      },
+  { "AspN",              		"0",     "D",        ""       },
+  { "Chymotrypsin(modified)",   	"1",     "FWYL",     "P"      },
+  { "Elastase", 	   		"1",     "ALIV",     "P"      },
+  { "Elastase/Trypsin/Chymotrypsin",   	"1",     "ALIVKRWFY","P"      } };
+
+
+  /*
+   *  The following array lists the weights of each of the amino acids in
+   *  increasing order.  J and U are present in order to complete the
+   *  alphabet.  The string following this list just relates a weight to
+   *  a single letter code for the cooresponding amino acid.
+   */
+
+  private double [] avgWeightDblAA = {//  the amino acids (always upper case)
+        57.05192000,  //  G
+        71.07880000,  //  A
+        87.07820000,  //  S
+        97.11668000,  //  P
+        99.13256000,  //  V
+        101.1050800,  //  T
+        103.1388000,  //  C
+        113.1594400,  //  L
+        113.1594400,  //  I
+        113.1594400,  //  X
+        114.1038400,  //  N
+        114.1472000,  //  O
+        114.5962200,  //  B
+        115.0886000,  //  D
+        128.1307200,  //  Q
+        128.1740800,  //  K
+        128.6231000,  //  Z
+        129.1154800,  //  E
+        131.1925600,  //  M
+        137.1410800,  //  H
+        147.1765600,  //  F
+        156.1874800,  //  R
+        163.1759600,  //  Y
+        186.2132000,  //  W
+        0.0,  //  J -- not an amino acid
+        0.0};   // U --  not an amino acid
+
+
+  private static final String weightStrAA = "GASPVTCLIXNOBDQKZEMHFRYWJU";  // the amino acids plus other alpha's
+
+  private static final String delimiter = "-";
+
+
+  /*
+   *  DO GET
+   */
+
+
+  //  This function is the main servlet function which communicates with the server
+  public void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException
+  {
+
+  res.setContentType ("text/html");
+  out = res.getWriter();
+
+  /*
+   *  GET USER OPTIONS
+   */
+
+  //  retrieves the user entered protein sequence  
+  sequence = req.getParameter("sequence");
+
+  //  retrieves the user selected method 1 for digestion
+  method1 = req.getParameter("method1");
+
+  //  retrieves the user selected method 2 for digestion
+  method2 = req.getParameter("method2");
+
+  //  retrieves the user selected missed cleavages
+  missedCleavages = req.getParameter("missedCleavages");
+
+  //  retrieves the user selected output order
+  outputOrder = req.getParameter("outputOrder");
+
+  //  retrieves the user selected output options
+  pI = req.getParameter("pI");
+  mass = req.getParameter("mass");
+  position = req.getParameter("position");
+
+  //  retrieves user choosen filters
+  minMass = req.getParameter("minMass");
+  maxMass = req.getParameter("maxMass");
+  
+  highlightAA = req.getParameter("highlightAA");
+  includeAA = req.getParameter("includeAA");
+
+
+  /*
+   *  CREATION OF HTML DOC FOR OUTPUT
+   */
+
+
+  out.println("<HTML>");
+  out.println("<HEAD><TITLE>Output Page</TITLE></HEAD><BODY>");
+
+  out.println("<CENTER><H1><FONT FACE = Arial>Digestion Results</FONT></H1></CENTER>");
+
+  //  format the output
+  out.println("<FONT FACE = Arial>");
+
+  processedSequence = processSeq(sequence);
+
+  if (processedSequence.length() > 0)
+  {
+
+    out.println("<H2>Digest Table</H2>");
+    out.println(processedSequence);
+
+    out.println("</FONT></BODY></HTML>");
+
+  }
+  else
+    out.println("Please enter a sequence." + "</FONT></BODY></HTML>");
+
+
+  }  // end doGet
+
+
+  
+  /*
+   *  PROCESS SEQUENCE
+   */
+
+
+  public String processSeq (String seq)
+  {
+
+    seq = seq.toUpperCase();
+
+    //  clears tempSeq
+//    tempSeq.delete(0,tempSeq.lenght());
+
+    StringBuffer tempSeq = new StringBuffer("");
+
+    for (int i = 0; i < seq.length(); i++)
+    {
+      if (Character.isLetter(seq.charAt(i)))
+      {
+//        if (isAminoAcid(seq.charAt(i)))
+//        {
+          tempSeq.append(seq.charAt(i));
+//        }
+//        else
+//        {
+//          inputError = 1;
+//          return "Input error.  Please reenter peptide.";
+//        }
+      }
+                  
+    }
+
+    //  convert tempSeq to String
+    seq = tempSeq.toString();
+
+    if (seq.length() > 0)
+    {
+      seq = digestPeptide(seq);
+
+      seq = formatOutput(seq);
+    }
+
+    return seq;
+  }
+
+  /*
+   *  IS AMINO ACID
+   */
+
+  public boolean isAminoAcid (char ch)
+  {
+
+    if ( Character.isLetter (ch) )
+    {
+      if ( (ch != 'J') && (ch != 'U') )  //  these chars don't indicate a single amino acid
+        return true;
+    }
+
+    return false;
+  }
+
+
+
+  /*
+   *  DIGEST PEPTIDE
+   */
+
+  public String digestPeptide (String seq)
+  {
+
+    String nc = "",
+           cutAAs = "",
+           exceptAAs = "";
+
+    //  defines parameters for method chosen
+    for (int i = 0; i < 13; i++)
+    {
+      if (digestRules[i][0].equals(method1))
+      {
+        nc = digestRules[i][1];
+        cutAAs = digestRules[i][2];
+        exceptAAs = digestRules[i][3];
+      }
+    }
+
+    //  clears tempSeq
+//    tempSeq.delete(0,tempSeq.lenght());
+
+    StringBuffer tempSeq = new StringBuffer("");
+
+    //  add delimiter according to method1
+
+    for (int i = 0; i < seq.length(); i++)
+    {
+      if (nc == "1")
+      {
+        tempSeq.append(seq.charAt(i));  //  add amino acid to sequence before delimiter
+        if ( cutAAs.indexOf ( seq.charAt(i) ) != (-1) )  //  the amino acid is a slice point
+        {
+          if (i != (seq.length()-1) )  //  not at end of sequence
+          {
+            if (exceptAAs.indexOf(seq.charAt(i+1)) == (-1) )  //  amino acid not an exception
+              tempSeq.append(delimiter);
+          }
+        }
+      }
+      else // (nc == "0")
+      {
+        if ( cutAAs.indexOf ( seq.charAt(i) ) != (-1) )  //  the amino acid is a slice point
+        {
+          if (i != 0 )  //  not at beginning of sequence
+          {
+            tempSeq.append(delimiter);
+          }
+        }
+        tempSeq.append(seq.charAt(i));  //  add amino acid to sequence after delimiter
+      }
+    }
+
+
+    if ( !(method2.equals("none")) && !(method2.equals(method1)) ) //  another method was chosen
+    {
+      seq = tempSeq.toString();  //  store the digested sequence in seq for further processing
+
+      tempSeq = new StringBuffer("");
+//      tempSeq.delete(0,(tempSeq.length()-1));  // reinitialize tempSeq for method2 if one was chosen
+
+      //  defines parameters for method chosen
+      for (int i = 0; i < 13; i++)
+      {
+        if (digestRules[i][0].equals(method2))
+        {
+          nc = digestRules[i][1];
+          cutAAs = digestRules[i][2];
+          exceptAAs = digestRules[i][3];
+
+        }
+      }
+          
+      //  add delimiter according to method2
+
+
+      for (int i = 0; i < seq.length(); i++)
+      {
+        if (nc == "1")
+        {
+          tempSeq.append(seq.charAt(i));  //  add amino acid to sequence before delimiter
+          if ( cutAAs.indexOf ( seq.charAt(i) ) != (-1) )  //  the amino acid is a slice point
+          {
+            if (i != (seq.length()-1) )  //  not at end of sequence
+            {
+              if (String.valueOf(seq.charAt(i+1)) != exceptAAs )  //  amino acid not an exception
+                tempSeq.append(delimiter);
+            }
+          }
+        }
+        else // (nc == "0")
+         {
+          if ( cutAAs.indexOf ( seq.charAt(i) ) != (-1) )  //  the amino acid is a slice point
+          {
+            if (i != 0 )  //  not at beginning of sequence
+            {
+              tempSeq.append(delimiter);
+            }
+          }
+          tempSeq.append(seq.charAt(i));  //  add amino acid to sequence after delimiter
+        }
+      }
+
+    }
+
+
+    //  deal with missed cleavages (optional user option)
+
+    if (!missedCleavages.equals("none"))
+    {
+      tempSeq = missedCleavagesCalc(tempSeq);
+    }
+
+  return tempSeq.toString();
+
+  }
+
+
+  /*
+   *  MISSED CLEAVAGES
+   */
+
+  public StringBuffer missedCleavagesCalc (StringBuffer seqBuff)
+  {
+
+    StringBuffer tempSeq = seqBuff;
+    String strVersion = seqBuff.toString();
+    int delimiterPos = strVersion.indexOf('-');
+
+    StringTokenizer tok1 = new StringTokenizer(strVersion, "-");
+
+    //  make vector containing all fragments in order
+
+    Vector fragmentsOrig = new Vector();  //  used to hold original single fragments
+    Vector fragmentsNew = new Vector();  // used to hold original fragments and newly combined fragments
+
+    //  create fragmentsOrig
+    while (tok1.hasMoreTokens())
+    {
+      String element = tok1.nextToken();
+      fragmentsOrig.addElement(element);
+    }
+
+    if (missedCleavages.equals("one"))
+    {
+
+      String first, second, comboFrag;
+
+      for (int i = 0; i < fragmentsOrig.size(); i++)
+      {
+
+        //  add first single fragment
+        fragmentsNew.addElement(fragmentsOrig.elementAt(i));
+
+        //  combine first and second (relative to i)
+        first = (String)fragmentsOrig.elementAt(i);
+        if (i < fragmentsOrig.size()-1)
+        {
+          second = (String)fragmentsOrig.elementAt(i+1);
+          comboFrag = first + second;
+          fragmentsNew.addElement(comboFrag);
+        }
+
+      }
+
+    }
+
+    if (missedCleavages.equals("two"))
+    {
+
+      String first, second, third, comboFrag;
+
+      for (int i = 0; i < fragmentsOrig.size(); i++)
+      {
+ 
+        //  add first single fragment
+        fragmentsNew.addElement(fragmentsOrig.elementAt(i));      
+
+        //  combine first and second (relative to i)
+        first = (String)fragmentsOrig.elementAt(i);
+        if (i < fragmentsOrig.size()-1)
+        {
+          second = (String)fragmentsOrig.elementAt(i+1);
+          comboFrag = first + second;
+          fragmentsNew.addElement(comboFrag);
+        }
+
+        //  combine first, second and third (relative to i)
+        if (i < fragmentsOrig.size()-2)
+        {
+          second = (String)fragmentsOrig.elementAt(i+1);
+          third = (String)fragmentsOrig.elementAt(i+2);
+          comboFrag = first + second + third;
+          fragmentsNew.addElement(comboFrag);
+        }
+
+      }
+
+     }
+
+    //  create a StringBuffer with delimiters
+
+    tempSeq = new StringBuffer("");
+    for (int i = 0; i < fragmentsNew.size(); i++)
+    {
+      tempSeq.append((String)fragmentsNew.elementAt(i));
+      if (i != (fragmentsNew.size()-1))
+        tempSeq.append("-");
+    }  
+        
+    
+
+    return tempSeq;  
+
+  }
+
+
+
+  /*
+   *  FORMAT OUTPUT
+   */
+
+  public String formatOutput (String seq)
+  {
+
+    if (outputOrder.equals("origSeqOrder"))
+      return (sortBasedUpon(seq,"origSeqOrder"));
+
+    if (outputOrder.equals("peptideMass"))
+      return (sortBasedUpon(seq,"mass"));
+
+    if (outputOrder.equals("peptideLength"))
+      return (sortBasedUpon(seq,"length"));
+
+    if (outputOrder.equals("pIValue"))
+      return (sortBasedUpon(seq,"pI"));
+    
+    return "";
+
+  }
+
+
+
+  /*
+   *   LOOKUP WEIGHT
+   */
+   
+double weightDbl;
+int charIndex;
+char ch;
+   
+  //  The lookupWeight(String s) method takes a string of AA's and looks up the appropriate weight associated with it
+   
+
+  public double lookupWeight(String s)
+  {
+
+     weightDbl = 0;  // initialization
+
+
+     for (int i = 0; i < s.length(); i++)
+     {
+        ch = s.charAt(i);
+
+        charIndex = weightStrAA.indexOf(ch);
+        weightDbl += avgWeightDblAA[charIndex];
+     }
+
+     if (digestRules[3][0].equals(method1) && s.charAt(s.length()-1)=='M')
+     {
+        // cyanogen bromide - Meth modified by losing SCH3
+        weightDbl -= 32.066 + 12.0107 + 3*1.00794;
+     }
+
+     weightDbl += 15.9994+1.00794+1.00794;
+
+     return weightDbl;
+  }
+
+
+/* the 7 amino acid which matter */
+static int R = 'R' - 'A',
+           H = 'H' - 'A',
+           K = 'K' - 'A',
+           D = 'D' - 'A',
+           E = 'E' - 'A',
+           C = 'C' - 'A',
+           Y = 'Y' - 'A';
+/*
+ *  table of pk values :
+ *  Note: the current algorithm does not use the last two columns. Each
+ *  row corresponds to an amino acid starting with Ala. J, O and U are
+ *  inexistant, but here only in order to have the complete alphabet.
+ *
+ */
+
+static double [][] pk = {
+ /*          Ct    Nt   Sm     Sc     Sn */
+/* A */    {3.55, 7.59, 0.0  , 0.0  , 0.0   },
+/* B */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* C */    {3.55, 7.50, 9.00 , 9.00 , 9.00  },
+/* D */    {4.55, 7.50, 4.05 , 4.05 , 4.05  },
+/* E */    {4.75, 7.70, 4.45 , 4.45 , 4.45  },
+/* F */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* G */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* H */    {3.55, 7.50, 5.98 , 5.98 , 5.98  },
+/* I */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* J */    {0.00, 0.00, 0.0  , 0.0  , 0.0   },
+/* K */    {3.55, 7.50, 10.00, 10.00, 10.00 },
+/* L */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* M */    {3.55, 7.00, 0.0  , 0.0  , 0.0   },
+/* N */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* O */    {0.00, 0.00, 0.0  , 0.0  , 0.0   },
+/* P */    {3.55, 8.36, 0.0  , 0.0  , 0.0   },
+/* Q */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* R */    {3.55, 7.50, 12.0 , 12.0 , 12.0  },
+/* S */    {3.55, 6.93, 0.0  , 0.0  , 0.0   },
+/* T */    {3.55, 6.82, 0.0  , 0.0  , 0.0   },
+/* U */    {0.00, 0.00, 0.0  , 0.0  , 0.0   },
+/* V */    {3.55, 7.44, 0.0  , 0.0  , 0.0   },
+/* W */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* X */    {3.55, 7.50, 0.0  , 0.0  , 0.0   },
+/* Y */    {3.55, 7.50, 10.00, 10.00, 10.00 },
+/* Z */    {3.55, 7.50, 0.0  , 0.0  , 0.0   }};
+
+
+  static final double PH_MIN = 0.0;  //  minimum pH value
+  static final double PH_MAX = 14.0;  //  maximum pH value
+  static final double MAX_LOOP = 2000;  //  maximum iterations
+  static final double DEC = 0.0001;  //  desired precision
+  
+
+  public double exp_10(double val)
+  {
+    return (Math.pow(10,val));
+
+  }
+
+  public double calc_pI(String seq)
+  {
+    int [] comp = new int [26];  //  number of each amino acid in sequence
+    int ntermres,     //  integer value representing n-terminus amino acid
+        ctermres;     //  integer value representing c-terminus amino acid
+
+    double charge,
+           ph_mid,
+           ph_min,
+           ph_max,
+           cter,
+           nter,
+           carg,   //  charge for arginines (R)
+           clys,   //  charge for lysines (Y)
+           chis,   //  charge for histidines (H)
+           casp,   //  charge for asparagines (
+           cglu,   //  charge for glutamines (
+           ctyr,   //  charge for tyrosines
+           ccys;   //  charge for cystines (C)
+
+
+  //  compute the number of each amino acid in sequence
+  for (int i = 0;  i < seq.length(); i++)
+  {
+    comp[seq.charAt(i) - 'A']++;
+  }
+
+  ntermres = seq.charAt(0) - 'A';  //  index of n-terminus amino acid
+  ctermres = seq.charAt(seq.length()-1) - 'A';  //  index of c-terminus amino acid
+
+  ph_min = PH_MIN;
+  ph_max = PH_MAX;
+  ph_mid = ph_min + (ph_max - ph_min) / 2.0;
+  
+
+  for (int i = 0; ( i < MAX_LOOP ) && ( (ph_max - ph_min) > DEC );i++ )
+  {
+
+    ph_mid = ph_min + (ph_max - ph_min) / 2.0;
+
+    cter = exp_10(-pk[ctermres][0]) / ( exp_10(-pk[ctermres][0]) + exp_10(-ph_mid));
+    nter = exp_10(-ph_mid) / ( exp_10(-pk[ntermres][1]) + exp_10(-ph_mid));
+
+    carg = comp[R] * exp_10(-ph_mid) / ( exp_10 (-pk[R][2]) + exp_10(-ph_mid) );
+    chis = comp[H] * exp_10(-ph_mid) / ( exp_10 (-pk[H][2]) + exp_10(-ph_mid) );
+    clys = comp[K] * exp_10(-ph_mid) / ( exp_10 (-pk[K][2]) + exp_10(-ph_mid) );
+    casp = comp[D] * exp_10(-pk[D][2]) / ( exp_10 (-pk[D][2]) + exp_10(-ph_mid) );
+    cglu = comp[E] * exp_10(-pk[E][2]) / ( exp_10 (-pk[E][2]) + exp_10(-ph_mid) );
+    ccys = comp[C] * exp_10(-pk[C][2]) / ( exp_10 (-pk[C][2]) + exp_10(-ph_mid) );
+    ctyr = comp[Y] * exp_10(-pk[Y][2]) / ( exp_10 (-pk[Y][2]) + exp_10(-ph_mid) );
+
+    charge = carg + clys + chis + nter - (casp + cglu + ctyr + ccys + cter);
+
+    if (charge > 0.0)
+      ph_min = ph_mid;
+    else
+      ph_max = ph_mid;
+
+   }
+
+   return ph_mid;
+
+
+
+  }  //  end calc_pI
+
+
+  /*
+   *  SORT BASED UPON
+   */
+
+  public String sortBasedUpon (String seq, String sortParameter)
+  {
+
+
+    StringTokenizer tok = new StringTokenizer (seq, delimiter);
+
+    Vector oldVecMass = new Vector ();
+    Vector oldVecPep = new Vector ();
+
+    Vector newVecMass = new Vector ();
+    Vector newVecPep = new Vector ();
+
+    Vector oldPosVec = new Vector();
+    Vector newPosVec = new Vector();
+
+    String peptide;
+    double d = 0.0;
+    int pos = 0;
+    while (tok.hasMoreTokens())
+    {
+      pos++;
+      peptide = tok.nextToken();
+
+      
+      if (sortParameter.equals("origSeqOrder") )
+        d = pos;
+      if (sortParameter.equals("pI") )
+        d = calc_pI(peptide);
+      if (sortParameter.equals("mass") )
+        d = lookupWeight(peptide);
+      if (sortParameter.equals("length") )
+        d = peptide.length();
+
+      oldVecMass.addElement(String.valueOf(d));
+      oldVecPep.addElement(peptide);
+      oldPosVec.addElement(String.valueOf(pos));
+    }
+
+
+    //  sorting algorithm:  starts at beginning of oldVecMass and compares to end of growing newVecMass
+    //  until correct insertion point is found (sorts in increasing order of mass of peptide)
+
+
+    double newVal, oldVal;
+
+    for (int i = 0; i < oldVecMass.size(); i++)
+    {
+      if (newVecMass.isEmpty())  //  the first element of newVecPep is inserted
+      {
+        newVecMass.insertElementAt(oldVecMass.elementAt(i),0);
+        newVecPep.insertElementAt(oldVecPep.elementAt(i),0);
+        newPosVec.insertElementAt(oldPosVec.elementAt(i),0);
+        continue;
+      }
+      else
+      {
+
+        int j = 0;
+        int vecSize = newVecMass.size();
+
+        while( j < vecSize )
+        {
+
+          newVal = Double.valueOf( (String)newVecMass.elementAt(j) ).doubleValue();
+          oldVal = Double.valueOf( (String)oldVecMass.elementAt(i) ).doubleValue();
+
+          if ( newVal >= oldVal )
+          {
+            newVecMass.insertElementAt( ( oldVecMass.elementAt(i) ),j);
+            newVecPep.insertElementAt( ( oldVecPep.elementAt(i) ),j);  //  found insertion point
+            newPosVec.insertElementAt( ( oldPosVec.elementAt(i) ),j);  //  found insertion point
+            j++;
+            break;  //  get out of while loop
+          }
+          else if (j == (vecSize-1) )  //  reached end of new vector
+          {
+            newVecMass.addElement( ( oldVecMass.elementAt(i) ) );
+            newVecPep.addElement( ( oldVecPep.elementAt(i) ) );
+            newPosVec.addElement( ( oldPosVec.elementAt(i) ) );
+            j++;
+            break;
+          }
+
+          else
+          {
+            j++;
+            continue;
+          }
+
+        }
+      }
+    }
+
+    //  print out digestion method used
+
+    out.println("<H2>Digest Information</H2>\n");
+
+    out.println("<TT>Using <B>" + method1 + "</B> as digestion method" );
+    if (digestRules[3][0].equals(method1))
+       out.println("(Met=homoserine lactone)" );
+
+    if (!(method2.equals("none")))
+      out.println("and <B>" + method2 + "</B> as second digestion method" );
+
+    //  print out method of sorting
+
+    out.println("; sorted by <B>");
+    if (outputOrder.equals("origSeqOrder"))
+      out.println("order in sequence</B>");
+    if (outputOrder.equals("peptideMass"))
+      out.println("peptide mass</B>");
+    if (outputOrder.equals("peptideLength"))
+      out.println("peptide length</B>");
+    if (outputOrder.equals("pIValue"))
+      out.println("pI</B>");
+
+    out.println("</TT>\n");
+
+    //  filter the peptides according to user inputed mass range
+
+    double minDbl, maxDbl;
+
+    out.println("<H2>Filters</H2>\n");
+
+    out.println("<TT>");
+
+    out.println("Peptide mass range: ");
+    try
+    {
+      minDbl = new Double(minMass).doubleValue();
+      out.println(roundFxn(minDbl));
+    }
+    catch (NumberFormatException NFE1)
+    {
+      //  set default values for
+      minDbl = 0.0;
+      out.println(roundFxn(minDbl));
+    }
+    out.println(" to ");
+    try
+    {
+      maxDbl = new Double(maxMass).doubleValue();
+      out.println(roundFxn(maxDbl));
+    }
+    catch (NumberFormatException NFE2)
+    {
+      maxDbl = 100000.0;
+      out.println(roundFxn(maxDbl));
+    }
+    out.println("<BR>\n");
+
+    int count1 = 0;
+    while (count1 < newVecPep.size())
+    {
+      double elementValue = lookupWeight((String)newVecPep.elementAt(count1));
+
+      if ( (elementValue < minDbl) || (elementValue > maxDbl) )
+        newVecPep.removeElementAt(count1);
+      else
+       count1++;
+    }
+          
+
+    //  filter the peptides according to amino acid content
+
+    if (includeAA.length() > 0)
+    {
+
+      int count2 = 0;
+      includeAA = includeAA.toUpperCase();
+
+      out.println("Require residues: <B>" + includeAA + "</B><BR>");
+
+      while (count2 < newVecPep.size())
+      {
+        String element = (String)newVecPep.elementAt(count2);
+        for (int i = 0; i < element.length(); i++)
+        {
+          if (includeAA.indexOf(element.charAt(i)) != (-1)) // amino acid in inclusion list
+          {
+            break;  //  don't remove
+          }
+          if (i == element.length()-1)  // if amino acid not in inclusion list and reached end of peptide
+          {
+            newVecPep.removeElementAt(count2);  // remove peptide
+            count2--;
+          } 
+        }
+        count2++;
+
+      }
+    }
+
+    if (highlightAA.length() > 0)
+    {
+       highlightAA = highlightAA.toUpperCase();
+       out.println("Highlight residues: <FONT COLOR = red><B>" + highlightAA + "</B></FONT>");
+    } 
+    out.println("</TT>\n");
+
+    //  start a table in outputBuff
+    StringBuffer outputBuff = new StringBuffer("");
+
+
+    outputBuff.append("<PRE><U>" + Pad("#",4) + "</U>");
+    if (position != null)
+       outputBuff.append("<U>" + Pad("Pos",4) + "</U>");
+    if (mass != null)
+       outputBuff.append("<U>" + Pad("Mass",10) + "</U>");
+    if (pI != null)
+       outputBuff.append("<U>" + Pad("pI",10) + "</U>");
+    outputBuff.append("<U>" + "  Peptide" + "</U><BR>");
+
+
+    //  creates an enumeration based upon the vector of ordered peptides
+    Enumeration e = newVecPep.elements();
+
+    int numSeq = 0;
+    String calcPep = "";  //  string used to hold peptide sequence so that calculations can be performed
+
+    while ( e.hasMoreElements() )
+    {
+       calcPep = (String)e.nextElement();
+ 
+       //  if the fragment is greater than 10 AA's long it will be wrapped around with a <BR> tag
+       int countAA = 0;
+       StringBuffer pep = new StringBuffer("");
+       for (int i = 0; i < calcPep.length(); i++)
+       {
+         countAA++;
+         if (countAA == 10)
+           pep.append("<BR>");
+         pep.append(calcPep.charAt(i));
+       }
+ 
+       outputBuff.append(Pad(String.valueOf(++numSeq),4));
+       if (position != null)
+         outputBuff.append( Pad( (String)newPosVec.elementAt(numSeq-1), 4 ) );
+       if (mass != null)
+         outputBuff.append(Pad (roundFxn( lookupWeight( calcPep ) ), 10) );
+       if (pI != null)
+         outputBuff.append(Pad ( roundFxn( calc_pI(calcPep) ), 8 ) );
+
+       outputBuff.append("    ");
+       for ( int j = 0; j < calcPep.length(); j++)
+       {
+          if (highlightAA.indexOf(calcPep.charAt(j)) != (-1))  // contains an amino acid entered by user
+             outputBuff.append("<FONT COLOR=RED><B>" + calcPep.charAt(j) + "</B></FONT>");
+          else
+             outputBuff.append(calcPep.charAt(j));
+       }
+       outputBuff.append("\n");
+    }
+
+    outputBuff.append("</PRE>");
+
+    return (outputBuff.toString());
+
+  } //  end sortBasedUpon
+
+  /*
+   *  PAD FUNCTION
+   */
+
+  //  pads the string content with spaces on either side to make it the length in characters of padNum (2nd argument)
+  public StringBuffer Pad (String content, int padNum)
+  {
+
+    int len = content.length();
+    int spaces = padNum-len;
+    double spacesFront = 0;
+    double spacesBack = 0;
+
+    if (spaces > 0)
+    {
+      double div2 = spaces/2.0;
+      if (div2 > Math.floor(div2)) //  odd number of spaces
+      {
+        spacesFront = Math.floor(div2);
+        spacesBack = Math.ceil(div2);
+      }
+      else //  even number of spaces
+      {
+        spacesFront = Math.floor(div2);
+        spacesBack = Math.floor(div2);
+      }
+    }
+
+    StringBuffer frontSpace = new StringBuffer("");
+    StringBuffer backSpace = new StringBuffer("");
+    StringBuffer contentBuff = new StringBuffer(content);
+
+    //  create space in front and back
+    for (int i = 0; i < spacesFront; i++)
+      frontSpace.append(" ");
+    for (int i = 0; i < spacesBack; i++)
+      backSpace.append(" ");
+
+    frontSpace.append(contentBuff);
+    frontSpace.append(backSpace);
+    return frontSpace;
+
+  }
+
+
+  /*
+   *  ROUND FUNCTION
+   */
+
+  //  rounds double values to the nearest hundredths place 
+  //  or if >100000 converts it to scientific notation
+  public String roundFxn(double d)
+  {
+    double dTemp;
+    double rounder = 0.005;
+    String dStr = ""; 
+
+    //  add the rounder to the input double
+    d += rounder;
+
+    int places = 1;
+    double div10 = d;
+    
+    while (div10 >= 10)
+    {
+      div10 = div10/10;
+      places++;
+    }
+
+
+    //  adds zero's to the beginning of a small number
+    if (d < 100000)
+    {
+      dTemp = d;
+
+      dStr = String.valueOf(dTemp) + "000000";
+      dStr = dStr.substring(0,(places + 3));
+
+      int spaces = 5 - places;
+
+      //  add spaces to the beginning
+      String blankStr = "";
+      for (int i = 0; i < spaces; i++)
+      {
+        blankStr += " ";
+      }
+      dStr = blankStr + dStr;
+    }
+
+    if (d >= 100000)
+    {
+      dTemp = d;
+
+      dStr = String.valueOf(dTemp);
+
+      StringBuffer dBuff = new StringBuffer(dStr);
+      
+      //  delete decimal point
+      dBuff.deleteCharAt(places);
+
+      //  reinsert decimal point at scietific notation point
+      dBuff.insert(1,'.');
+
+      dStr = (dBuff.toString()).substring(0,5);
+      
+      dTemp = Double.valueOf(dStr).doubleValue();
+      dTemp += rounder;
+
+      dStr = (dBuff.toString()).substring(0,4);
+
+      dStr = dStr + "e" + String.valueOf(places - 1);
+     }
+     
+     return dStr;
+
+  }  //  end roundFxn
+
+}  // end class ProteinDigest 

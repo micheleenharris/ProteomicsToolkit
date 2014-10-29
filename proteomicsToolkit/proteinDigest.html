@@ -1,0 +1,74 @@
+<HTML>
+<HEAD>
+<TITLE>PROTEIN ENZYME DIGEST</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#ffffcc">
+<FONT FACE="Arial" COLOR="#008080">
+<H2><CENTER>Protein Digest </CENTER></H2>
+</FONT>
+<HR><B>
+<UL>
+<LI>Enter a protein sequence in single-letter format into the sequence box
+and selected digestion method(s).  Whitespace and numbers are ignored.
+<!--
+<LI>Specify number of missed cleavages allowed.
+<LI>Specify data filters (mass range, amino acid exclusion, highlighting).
+<LI>Select the format of the output digest (sort by original order, length, mass, or pI).
+-->
+</UL>
+</TT>
+
+<FONT FACE="Arial" COLOR="#003366">
+<FORM METHOD=GET ACTION="ProteinDigest">
+<HR><H3>Digest</H3>
+<TABLE BORDER=0><TR VALIGN="TOP"><TD><TEXTAREA NAME="sequence" ROWS=6 COLS=60>PROTEIN</TEXTAREA></TD>
+<TD><INPUT TYPE=submit VALUE="Submit"><BR><INPUT TYPE=reset VALUE="Reset"></Td>
+</TR></TABLE>
+<PRE>  Enzyme1: <SELECT NAME ="method1">
+   <option value = "Trypsin">Trypsin
+   <option value = "Chymotrypsin">Chymotrypsin
+   <option value = "Clostripain">Clostripain
+   <option value = "Cyanogen_Bromide">Cyanogen Bromide
+   <option value = "IodosoBenzoate">IodosoBenzoate
+   <option value = "Proline_Endopept">Proline Endopept
+   <option value = "Staph_Protease">Staph Protease
+   <option value = "Trypsin_K">Trypsin K
+   <option value = "Trypsin_R">Trypsin R
+   <option value = "AspN">AspN
+   <option value = "Chymotrypsin(modified)">Chymotrypsin (modified)
+   <option value = "Elastase">Elastase
+   <option value = "Elastase/Trypsin/Chymotrypsin">Elastase/Trypsin/Chymotryp
+  </SELECT>  # missed cleavages: <SELECT NAME ="missedCleavages">
+   <option value = "none">(none)
+   <option value = "one">1
+   <option value = "two">2
+  </SELECT>
+  Enzyme2: <SELECT NAME ="method2">
+   <option value = "none">(none)
+   <option value = "Trypsin">Trypsin
+   <option value = "Chymotrypsin">Chymotrypsin
+   <option value = "Clostripain">Clostripain
+   <option value = "Cyanogen_Bromide">Cyanogen Bromide
+   <option value = "IodosoBenzoate">IodosoBenzoate
+   <option value = "Proline_Endopept">Proline Endopept
+   <option value = "Staph_Protease">Staph Protease
+   <option value = "Trypsin_K">Trypsin K
+   <option value = "Trypsin_R">Trypsin R
+   <option value = "AspN">AspN
+   <option value = "Chymotrypsin(modified)">Chymotrypsin (modified)
+   <option value = "Elastase">Elastase
+   <option value = "Elastase/Trypsin/Chymotrypsin">Elastase/Trypsin/Chymotryp
+  </SELECT></PRE>
+
+<HR><H3>Optional Filters & Format options</H3>
+<PRE>  Min Mass: <INPUT TYPE="text" SIZE=10 MAXLENGTH=10 NAME="minMass" VALUE="0">    Require AAs: <INPUT TYPE="text" SIZE=10 MAXLENGTH=20 NAME="includeAA">  Output Order: <SELECT NAME ="outputOrder">
+   <option value = "origSeqOrder">Location
+   <option value = "peptideMass">Peptide mass 
+   <option value = "peptideLength">Peptide length 
+   <option value = "pIValue">pI</SELECT>
+  Max Mass: <INPUT TYPE="text" SIZE=10 MAXLENGTH=10 NAME="maxMass" VALUE="none">  Highlight AAs: <INPUT TYPE="text" SIZE=10 MAXLENGTH=20 NAME="highlightAA">  Include Cols: </B><INPUT TYPE="checkbox" NAME="position" VALUE="yes" CHECKED>Pos <INPUT TYPE="checkbox" NAME="mass" VALUE="yes" CHECKED>Mass <INPUT TYPE="checkbox" NAME="pI" VALUE="yes" CHECKED>pI<B></PRE>
+</FORM>
+</FONT>
+</BODY>
+</HTML>

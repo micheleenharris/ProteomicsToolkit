@@ -1,0 +1,62 @@
+<HTML>
+<HEAD>
+<TITLE>DNA/RNA TRANSLATOR</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#ffffcc">
+<H2><CENTER>
+<FONT FACE="Arial" COLOR="#008080">
+
+ DNA/RNA Translator </CENTER></FONT></H2>
+
+<HR><B>
+<UL>
+<LI>The translator takes a DNA or RNA sequence consisting of A, T or U, C, and G.
+<LI>Ambiguous nucleotides (e.g. M, V, X) are not recognized.  
+<LI>Whitespace and numbers are ignored.  
+<LI>The start amino acid appears in red.  
+<LI>The stop codon is translated as "*" (default) unless otherwise specified and appears blue.
+</UL>
+
+<BR>
+
+<FORM METHOD=GET ACTION="servlet/DNAServlet">
+ <HR><BR>Choose the genetic code:<BR> 
+  <SELECT NAME ="code">
+   <option value = "Standard">Standard (Universal)
+   <option value = "Drosophila Mitochondrial">Drosophila Mitochondrial
+   <option value = "Vertebrate Mitochondrial">Vertebrate Mitochondrial
+   <option value = "Yeast Mitochondrial">Yeast Mitochondrial
+   <option value = "Mold Protozoan Coelenterate Mycoplasma Mitochondrial">Mold Protozoan Coelenterate Mycoplasma Mitochondrial
+   <option value = "Invertebrate Mitochondrial">Invertebrate Mitochondrial
+   <option value = "Ciliate Dasycladacean Hexamita Nuclear">Ciliate Dasycladacean Hexamita Nuclear
+   <option value = "Echinoderm Mitochondrial">Echinoderm Mitochondrial
+   <option value = "Euplotid Nuclear">Euplotid Nuclear
+   <option value = "Bacterial">Bacterial
+   <option value = "Alternative Yeast Nuclear">Alternative Yeast Nuclear
+   <option value = "Ascidian Mitochondrial">Ascidian Mitochondrial
+   <option value = "Flatworm Mitochondrial">Flatworm Mitochondrial
+   <option value = "Blepharisma Mitochondrial">Blepharisma Mitochondrial
+  </SELECT>
+
+
+ <BR><BR>Input DNA/RNA sequence here:<BR>
+  <TEXTAREA NAME="sequence" ROWS=6 COLS=60>
+  </TEXTAREA><BR>
+
+  <BR><BR>Specify what character the stop codon should be displayed as (e.g. * , ! , _ )<BR>
+  <INPUT TYPE="TEXT" NAME="stopFormat" VALUE="*" SIZE="1" MAXLENTH="1">
+
+  <BR><BR>Check to include nucleotide sequence in output
+  <INPUT TYPE="checkbox" NAME="outputSeq" VALUE="yes"><BR><BR>
+
+
+
+  <INPUT TYPE=submit VALUE="Submit">
+
+  <INPUT TYPE=reset VALUE="Clear Input">
+
+</B>
+</FORM>
+</BODY>
+</HTML>

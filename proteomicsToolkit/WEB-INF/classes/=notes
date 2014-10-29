@@ -1,0 +1,25 @@
+
+Compile the files in this directory with:
+
+#### cd here
+cd /local/tomcat/webapps/proteomicsToolkit/WEB-INF/classes
+
+#### Set up correct PATHs
+setenv PATH /usr/java/jdk1.4/bin:$PATH
+rehash
+setenv CLASSPATH .:/local/tomcat/jakarta-tomcat/common/lib/servlet-api.jar
+rehash
+
+#### Compile
+javac DNAServlet.java FragIonServlet.java IsotopeServlet.java ProteinDigest.java TranslationTable.java
+
+#### Then reload this application:
+  http://db.systemsbiology.net:8080/manager/html
+  (mgr: ISBisb)
+  Reload this webapp
+
+
+#### Or alternately restart the server
+sudo /etc/rc.d/init.d/tomcat restart
+
+

@@ -1,0 +1,38 @@
+<HTML>
+<HEAD>
+<TITLE>PROTEOMICS TOOLKIT</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#ffffcc">
+<H2><CENTER><FONT FACE="Arial" COLOR="#008080">
+Mass, Elemental Composition, Amino Acid Composition, Isotope Ratio Data
+</FONT></CENTER></H2>
+
+<HR><B>
+<UL>
+<LI>The mass (monoistopic and average), elemental and amino acid <BR>
+composition is determined for each peptide.  Also a table of the isotope<BR>
+ratios for <I>M+1</I> and <I>M+2</I> peaks relative to the <I>M</I> peak is displayed.
+<LI>Each sequence should be written on its own line.
+<LI>Whitespace and numbers are ignored within the sequence.
+<LI>More on Isotope Ratio Data <A HREF="http://www.chemistry.ccsu.edu/glagovich/teaching/472/ms/isotope.html"
+TARGET=_blank>here</A>.
+
+</UL>
+
+<HR>
+
+<FORM METHOD=GET ACTION="IsotopeServlet">
+
+
+<PRE><FONT COLOR="#003366">Input peptide sequences here.
+Place multiple sequences on separate lines.</FONT></PRE>
+  <TEXTAREA NAME="sequence" ROWS=5 COLS=60>PEPTIDE
+SAMPLE</TEXTAREA><BR><BR>
+
+<INPUT TYPE="submit" NAME="submit" VALUE="Submit">
+
+<INPUT TYPE="reset">
+
+</BODY>
+</HTML>

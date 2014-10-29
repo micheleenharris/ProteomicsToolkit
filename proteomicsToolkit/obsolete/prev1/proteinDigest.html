@@ -1,0 +1,116 @@
+<HTML>
+<HEAD>
+<TITLE>PROTEIN ENZYME DIGEST</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#ffffcc">
+<H2><CENTER>
+<FONT FACE="Arial" COLOR="#008080">
+
+ Protein Digest </CENTER></FONT></H2>
+
+<HR><B>
+<UL>
+<LI>Enter a protein sequence in single-letter format into the sequence box<BR>
+and selected digestion method(s).  Whitespace and numbers are ignored.
+<LI>Specify number of missed cleavages allowed.
+<LI>Specify data filters (mass range, amino acid exclusion, highlighting).
+<LI>Select the format of the output digest (sort by original order, length, mass, or pI).
+</UL>
+
+<HR>
+
+<H3><FONT FACE ="Arial" COLOR = "#003366">Digest</FONT></H3>
+
+<FORM METHOD=GET ACTION="servlet/ProteinDigest">
+<PRE><FONT FACE ="Arial" COLOR = "#003366">Input protein sequence here in single-letter format:</PRE>
+  <TEXTAREA NAME="sequence" ROWS=6 COLS=60>
+  </TEXTAREA>
+
+
+
+
+ <BR><PRE><FONT FACE ="Arial" COLOR = "#003366">Select a digestion method:             Select a second digestion method (OPTIONAL):</FONT></PRE>
+  <SELECT NAME ="method1">
+   <option value = "Trypsin">Trypsin
+   <option value = "Chymotrypsin">Chymotrypsin
+   <option value = "Clostripain">Clostripain
+   <option value = "Cyanogen_Bromide">Cyanogen_Bromide
+   <option value = "IodosoBenzoate">IodosoBenzoate
+   <option value = "Proline_Endopept">Proline_Endopept
+   <option value = "Staph_Protease">Staph_Protease
+   <option value = "Trypsin_K">Trypsin_K
+   <option value = "Trypsin_R">Trypsin_R
+   <option value = "AspN">AspN
+   <option value = "Chymotrypsin(modified)">Chymotrypsin(modified)
+   <option value = "Elastase">Elastase
+   <option value = "Elastase/Trypsin/Chymotrypsin">Elastase/Trypsin/Chymotrypsin
+  </SELECT>
+
+
+  <SELECT NAME ="method2">
+   <option value = "none">(none)
+   <option value = "Trypsin">Trypsin
+   <option value = "Chymotrypsin">Chymotrypsin
+   <option value = "Clostripain">Clostripain
+   <option value = "Cyanogen_Bromide">Cyanogen_Bromide
+   <option value = "IodosoBenzoate">IodosoBenzoate
+   <option value = "Proline_Endopept">Proline_Endopept
+   <option value = "Staph_Protease">Staph_Protease
+   <option value = "Trypsin_K">Trypsin_K
+   <option value = "Trypsin_R">Trypsin_R
+   <option value = "AspN">AspN
+   <option value = "Chymotrypsin(modified)">Chymotrypsin(modified)
+   <option value = "Elastase">Elastase
+   <option value = "Elastase/Trypsin/Chymotrypsin">Elastase/Trypsin/Chymotrypsin
+  </SELECT>
+
+
+<BR><BR><PRE><FONT FACE ="Arial" COLOR = "#003366">Number missed cleavages (OPTIONAL):</FONT></PRE>
+ <SELECT NAME ="missedCleavages">
+   <option value = "none">(none)
+   <option value = "one">1
+   <option value = "two">2
+  </SELECT>
+
+<HR>
+<H3>Filters</H3>
+
+<PRE><FONT FACE ="Arial" COLOR = "#003366">Indicate a mass range (OPTIONAL):
+<BLOCKQUOTE> min mass  <INPUT TYPE="text" SIZE=10 MAXLENGTH=10 NAME="minMass" VALUE="0">
+ max mass <INPUT TYPE="text" SIZE=10 MAXLENGTH=10 NAME="maxMass" VALUE="none"></PRE></FONT></BLOCKQUOTE>
+
+<PRE><FONT FACE ="Arial" COLOR = "#003366">Highlight peptides containing the following amino acids (OPTIONAL):
+<BLOCKQUOTE> <INPUT TYPE="text" SIZE=10 MAXLENGTH=20 NAME="highlightAA"> </BLOCKQUOTE>
+Only include peptides containing one or more of the following amino acids (OPTIONAL):
+<BLOCKQUOTE> <INPUT TYPE="text" SIZE=10 MAXLENGTH=20 NAME="includeAA"></BLOCKQUOTE></PRE></FONT>
+
+<HR>
+<H3>Format Output</H3>
+
+
+ <PRE><FONT FACE ="Arial" COLOR = "#003366">Select an output order for fragments:</FONT></PRE>
+  <SELECT NAME ="outputOrder">
+   <option value = "origSeqOrder">Location in original sequence 
+   <option value = "peptideMass">Peptide mass 
+   <option value = "peptideLength">Peptide length 
+   <option value = "pIValue">pI value (increasing)
+ </SELECT><BR>
+
+ <PRE><FONT FACE ="Arial" COLOR = "#003366">
+ <INPUT TYPE="checkbox" NAME="position" VALUE="yes" CHECKED>Include original position
+ <INPUT TYPE="checkbox" NAME="mass" VALUE="yes" CHECKED>Include mass
+ <INPUT TYPE="checkbox" NAME="pI" VALUE="yes" CHECKED>Include pI value</FONT></PRE>
+
+
+ <INPUT TYPE=submit VALUE="Submit">
+
+ <INPUT TYPE=reset VALUE="Clear Input">
+
+</B>
+</FORM>
+</BODY>
+</HTML>
+
+
+

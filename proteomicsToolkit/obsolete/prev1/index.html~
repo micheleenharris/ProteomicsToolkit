@@ -1,0 +1,31 @@
+<html>
+<title>Proteomics Toolkit</title>
+<body bgcolor="#FFFFFF">
+
+<img src=logo.jpg align=top>
+
+<h3>Tools:</h3>
+<ul>
+<li><A HREF="DNATranslator.html">DNA Translator</A><BR><BR>
+<li><A HREF="FragIonServlet.html">Fragment Ion Calculator</A><BR><BR>
+<li><A HREF="IsotopeServlet.html">Composition Calculator</A><BR><BR>
+<li><A HREF="proteinDigest.html">Protein Digest</A><BR><BR>
+</ul>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
